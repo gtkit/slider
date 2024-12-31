@@ -35,9 +35,9 @@ func (s *Slide) hasVerifyImg(ctx context.Context) error {
 }
 
 // 保存验证码图片.
-func (s *Slide) saveVerifyImg(ctx context.Context, img ImgInterface) (*SliderImgBase64, error) {
+func (s *Slide) saveVerifyImg(ctx context.Context, img ImgInterface) (*ImgBase64, error) {
 	errChan := make(chan error, 1)
-	saveImg := make(chan *SliderImgBase64, 1)
+	saveImg := make(chan *ImgBase64, 1)
 
 	go func(c context.Context) {
 		var bgimg, blockimg string
@@ -73,15 +73,15 @@ func (s *Slide) saveVerifyImg(ctx context.Context, img ImgInterface) (*SliderImg
 }
 
 // 处理图片验证.
-func (s *Slide) handleVerifyImg(ctx context.Context, imgbase64 *SliderImgBase64) error {
+func (s *Slide) handleVerifyImg(ctx context.Context, imgbase64 *ImgBase64) error {
 	errChan := make(chan error, 1)
 	go func() {
 		img := s.sliderimg(imgbase64)
 		if err := chromedp.Run(ctx,
-			// 等待元素可见（即页面已加载）账号框
-			DragSlider(s.DragSelector, getDistance(img)),
+			// 拖动滑块进行验证
+			DragSlider(s.DragSelector, getDistance(img, s.Mode)),
 		); err != nil {
-			logger.Error("-----图片验证失败:", err)
+			logger.Error("图片验证失败:", err)
 			errChan <- err
 			return
 		}

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gtkit/goerr"
-	"github.com/gtkit/logger"
 )
 
 func (s *Slide) Run(ctx context.Context) error {
@@ -14,23 +13,23 @@ func (s *Slide) Run(ctx context.Context) error {
 	}
 	errchan := make(chan error, 1)
 	go func() {
-		for i := 0; i < 10; i++ {
+		for i := 0; i < s.TryNum; i++ {
+			// 判断是否有图片验证码
 			if err := s.hasVerifyImg(ctx); err == nil {
-				logger.Info("chrome has verifyImg")
-				imgbase, err := s.saveVerifyImg(ctx, &ImgUrl{})
+				// 保存图片验证码
+				imgbase, err := s.saveVerifyImg(ctx, &ImgURL{})
 				if err != nil {
 					errchan <- goerr.Wrap(err, "saveVerifyImg error")
 					return
 				}
 
 				// 处理图片验证
-				if err := s.handleVerifyImg(ctx, imgbase); err != nil {
+				if err = s.handleVerifyImg(ctx, imgbase); err != nil {
 					errchan <- goerr.Wrap(err, "handleVerifyImg error")
 					return
 				}
 			} else {
-				logger.Info("没有图片验证码: ", err)
-				errchan <- nil
+				errchan <- err
 				return
 			}
 			time.Sleep(1 * time.Second)
@@ -74,18 +73,17 @@ func (s *Slide) verifyParams() error {
 	return nil
 }
 
-func (s *Slide) sliderimg(imgbase *SliderImgBase64) *SliderImg {
-	return &SliderImg{
-		SliderImgBase64: SliderImgBase64{
+func (s *Slide) sliderimg(imgbase *ImgBase64) *Img {
+	return &Img{
+		ImgBase64: ImgBase64{
 			BgBase64:    imgbase.BgBase64,
 			BlockBase64: imgbase.BlockBase64,
 		},
-		SliderImgSize: SliderImgSize{
+		ImgSize: ImgSize{
 			BgWidth:     s.BgWidth,
 			BgHeight:    s.BgHeight,
 			BlockWidth:  s.BlockWidth,
 			BlockHeight: s.BlockHeight,
 		},
 	}
-
 }

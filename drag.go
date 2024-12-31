@@ -3,7 +3,6 @@ package slider
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	"time"
 
@@ -15,7 +14,7 @@ import (
 )
 
 func DragSlider(sel interface{}, xlap int) chromedp.QueryAction {
-	return chromedp.QueryAfter(sel, func(ctx context.Context, id runtime.ExecutionContextID, node ...*cdp.Node) error {
+	return chromedp.QueryAfter(sel, func(ctx context.Context, _ runtime.ExecutionContextID, node ...*cdp.Node) error {
 		if len(node) == 0 {
 			return fmt.Errorf("找不到相关 Node")
 		}
@@ -55,10 +54,9 @@ func MouseDragNode(n *cdp.Node, xlap int) chromedp.ActionFunc {
 			Button:     input.Left,
 			ClickCount: 1,
 		}
-		log.Println("---mouseDragNode start----")
 
 		// 鼠标左键按下
-		if err := p.Do(ctx); err != nil {
+		if err = p.Do(ctx); err != nil {
 			return err
 		}
 
@@ -70,7 +68,9 @@ func MouseDragNode(n *cdp.Node, xlap int) chromedp.ActionFunc {
 		// 生成随机的路径,模拟拖动
 		for i := 0; i < t; i++ {
 			rt := rand.Intn(20) + 20
-			chromedp.Run(ctx, chromedp.Sleep(time.Millisecond*time.Duration(rt)))
+			if err = chromedp.Run(ctx, chromedp.Sleep(time.Millisecond*time.Duration(rt))); err != nil {
+				continue
+			}
 			x := rand.Intn(2) + 4
 			if totalX >= xlap {
 				break
@@ -82,16 +82,15 @@ func MouseDragNode(n *cdp.Node, xlap int) chromedp.ActionFunc {
 			totalX += x
 			y := rand.Intn(2)
 
-			p.Y = p.Y + float64(y)
-			p.X = p.X + float64(x)
+			p.Y += float64(y)
+			p.X += float64(x)
 
-			if err := p.Do(ctx); err != nil {
+			if err = p.Do(ctx); err != nil {
 				return err
 			}
 		}
 		// 鼠标松开
 		p.Type = input.MouseReleased
-		log.Println("---mouseDragNode end----")
 		return p.Do(ctx)
 	}
 }

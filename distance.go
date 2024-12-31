@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func getDistance(img *SliderImg, mode gocv.TemplateMatchMode) int {
+func getDistance(img *Img, mode gocv.TemplateMatchMode) int {
 	var (
 		eg               errgroup.Group
 		err              error
@@ -37,7 +37,7 @@ func getDistance(img *SliderImg, mode gocv.TemplateMatchMode) int {
 	})
 
 	// 等待所有协程完成
-	if err := eg.Wait(); err != nil {
+	if err = eg.Wait(); err != nil {
 		logger.Error("preProcess err:", err)
 		return 0
 	}
@@ -79,12 +79,6 @@ func gray(origin gocv.Mat) gocv.Mat {
 	grayed := gocv.NewMat()
 	gocv.CvtColor(origin, &grayed, gocv.ColorBGRToGray)
 	return grayed
-}
-
-func threshold(origin gocv.Mat) gocv.Mat {
-	thresholdBG := gocv.NewMat()
-	gocv.Threshold(origin, &thresholdBG, 100, 255, gocv.ThresholdBinaryInv)
-	return thresholdBG
 }
 
 func match(bg, block, mask gocv.Mat, mode gocv.TemplateMatchMode) image.Point {

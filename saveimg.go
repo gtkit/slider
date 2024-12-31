@@ -16,9 +16,9 @@ const (
 	Base64Prefix = "data:image/jpeg;base64,"
 )
 
-// 下载验证码图片
-func (i *ImgUrl) Save() *SliderImgBase64 {
-	sib := &SliderImgBase64{}
+// 下载验证码图片.
+func (i *ImgURL) Save() *ImgBase64 {
+	sib := &ImgBase64{}
 	// 分别获取图片
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -26,9 +26,9 @@ func (i *ImgUrl) Save() *SliderImgBase64 {
 
 	// 下载验证码背景图片
 	eg.Go(func() error {
-		data, err := downloadImg(ctx, i.BgUrl)
+		data, err := downloadImg(ctx, i.BgURL)
 		if err != nil {
-			logger.Error("downloadImg BgUrl error: %w", err)
+			logger.Error("downloadImg BgURL error: %w", err)
 			return err
 		}
 
@@ -40,9 +40,9 @@ func (i *ImgUrl) Save() *SliderImgBase64 {
 
 	// 下载验证码滑块图片
 	eg.Go(func() error {
-		data, err := downloadImg(ctx, i.BlockUrl)
+		data, err := downloadImg(ctx, i.BlockURL)
 		if err != nil {
-			logger.Error("downloadImg BlockUrl error: %w", err)
+			logger.Error("downloadImg BlockURL error: %w", err)
 			return err
 		}
 
@@ -50,25 +50,24 @@ func (i *ImgUrl) Save() *SliderImgBase64 {
 		// fmt.Println("验证码滑块图片base64: ", str)
 		sib.BlockBase64 = Base64Prefix + str
 		return nil
-
 	})
 
 	if err := eg.Wait(); err != nil {
 		logger.Error("download img error: %w", err)
 		return nil
 	}
-
 	return sib
 }
 
-// 设置url和path
-func (i *ImgUrl) Set(bgurl, blockurl string) ImgInterface {
-	i.BgUrl = bgurl
-	i.BlockUrl = blockurl
-	return i
+// 设置url和path.
+func (i *ImgURL) Set(bgurl, blockurl string) ImgInterface {
+	return &ImgURL{
+		BgURL:    bgurl,
+		BlockURL: blockurl,
+	}
 }
 
-// 下载图片
+// 下载图片.
 func downloadImg(ctx context.Context, url string) ([]byte, error) {
 	imgchan := make(chan []byte, 1)
 	errchan := make(chan error, 1)
@@ -81,7 +80,7 @@ func downloadImg(ctx context.Context, url string) ([]byte, error) {
 			return
 		}
 		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
+		if resp.StatusCode != http.StatusOK {
 			errchan <- goerr.Err("图片访问失败: %s" + resp.Status)
 			return
 		}
