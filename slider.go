@@ -10,10 +10,8 @@ import (
 type TemplateMatchMode = gocv.TemplateMatchMode
 
 const (
-	SleepTime = 3 * time.Second
-)
+	SleepTime = 5 * time.Second
 
-const (
 	// TmSqdiff maps to TM_SQDIFF 平方差匹配.
 	TmSqdiff TemplateMatchMode = 0
 	// TmSqdiffNormed maps to TM_SQDIFF_NORMED 标准化平方差匹配.
@@ -33,24 +31,47 @@ type Slider interface {
 }
 
 type Slide struct {
-	SliderImgSelector string // 验证码滑块图片选择器 示例: "img.yidun_bg-img"
-	BgImgQuery        string // 验证码背景图片选择器查询 示例: "document.querySelector('img.yidun_bg-img').src"
-	BlockImgQuery     string // 验证码滑块选择器查询 示例: "document.querySelector('img.yidun_jigsaw').src"
-	DragSelector      string // 拖动选择器 示例: "div.yidun_slider.yidun_slider--hover"
-	TryNum            int    // 尝试次数
+	Selector         string // 验证码滑块图片选择器,判断是否有滑块验证 示例: "img.yidun_bg-img"
+	BgImgSelector    string // 验证码背景图片选择器查询 示例: "img.yidun_bg-img.src"
+	BlockImgSelector string // 验证码滑块选择器查询 示例: "img.yidun_jigsaw"
+	DragSelector     string // 拖动选择器 示例: "div.yidun_slider.yidun_slider--hover"
+	ErrorSelector    string // 错误选择器 示例: "div.yidun_slider.yidun_slider--error"
 	ImgSize
 
-	Mode TemplateMatchMode // 模板匹配模式
+	tryFailed TryFailer
+	TryNum    int               // 尝试次数
+	Mode      TemplateMatchMode // 模板匹配模式
+	SleepTime time.Duration
+	imgSave   ImgSaver
 }
 
-func NewSlider(s *Slide) Slider {
+func NewSlider(s *Slide) *Slide {
 	if s.TryNum == 0 {
 		s.TryNum = 10
 	}
 	if s.Mode == 0 {
 		s.Mode = TmSqdiff
 	}
+	if s.SleepTime == 0 {
+		s.SleepTime = SleepTime
+	}
+	s.tryFailed = &tryFailed{}
+	s.imgSave = &ImgURL{}
 	return s
+}
+
+func (s *Slide) SetImgSaver(sa ImgSaver) Slider {
+	s.imgSave = sa
+	return s
+}
+func (s *Slide) SetTryFailed(tf TryFailer) Slider {
+	s.tryFailed = tf
+	return s
+}
+
+type Img struct {
+	ImgBase64
+	ImgSize
 }
 
 type ImgSize struct {
@@ -65,17 +86,8 @@ type ImgBase64 struct {
 	BgBase64    string `json:"bg_base64"`    // 验证码背景图片base64
 	BlockBase64 string `json:"block_base64"` // 验证码滑块图片base64
 }
-type Img struct {
-	ImgBase64
-	ImgSize
-}
 
-type ImgURL struct {
-	BgURL    string `json:"bg_url"`
-	BlockURL string `json:"block_url"`
-}
-
-type ImgInterface interface {
-	Save() *ImgBase64
-	Set(bgurl, blockurl string) ImgInterface
+// ImgInterface 图片接口, 背景图片和滑动图片
+type ImgSaver interface {
+	Save(bgurl, blockurl string) *ImgBase64
 }

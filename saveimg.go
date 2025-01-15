@@ -16,8 +16,13 @@ const (
 	Base64Prefix = "data:image/jpeg;base64,"
 )
 
+type ImgURL struct {
+	BgURL    string `json:"bg_url"`
+	BlockURL string `json:"block_url"`
+}
+
 // 下载验证码图片.
-func (i *ImgURL) Save() *ImgBase64 {
+func (i *ImgURL) Save(bgurl, blockurl string) *ImgBase64 {
 	sib := &ImgBase64{}
 	// 分别获取图片
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -26,7 +31,7 @@ func (i *ImgURL) Save() *ImgBase64 {
 
 	// 下载验证码背景图片
 	eg.Go(func() error {
-		data, err := downloadImg(ctx, i.BgURL)
+		data, err := downloadImg(ctx, bgurl)
 		if err != nil {
 			logger.Error("downloadImg BgURL error: %w", err)
 			return err
@@ -40,7 +45,7 @@ func (i *ImgURL) Save() *ImgBase64 {
 
 	// 下载验证码滑块图片
 	eg.Go(func() error {
-		data, err := downloadImg(ctx, i.BlockURL)
+		data, err := downloadImg(ctx, blockurl)
 		if err != nil {
 			logger.Error("downloadImg BlockURL error: %w", err)
 			return err
@@ -57,14 +62,6 @@ func (i *ImgURL) Save() *ImgBase64 {
 		return nil
 	}
 	return sib
-}
-
-// 设置url和path.
-func (i *ImgURL) Set(bgurl, blockurl string) ImgInterface {
-	return &ImgURL{
-		BgURL:    bgurl,
-		BlockURL: blockurl,
-	}
 }
 
 // 下载图片.

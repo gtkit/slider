@@ -5,39 +5,48 @@ import (
 	"time"
 
 	"github.com/gtkit/goerr"
+	"github.com/gtkit/logger"
 )
 
 func (s *Slide) Run(ctx context.Context) error {
-	if err := s.verifyParams(); err != nil {
+	var (
+		err     error
+		imgbase *ImgBase64
+	)
+
+	if err = s.validateParams(); err != nil {
 		return err
 	}
 	errchan := make(chan error, 1)
 	go func() {
 		for i := 0; i < s.TryNum; i++ {
+			time.Sleep(1 * time.Second)
 			// 判断是否有图片验证码
-			if err := s.hasVerifyImg(ctx); err == nil {
+			if err = s.hasVerifyImg(ctx); err == nil {
 				// 保存图片验证码
-				imgbase, err := s.saveVerifyImg(ctx, &ImgURL{})
+				imgbase, err = s.saveVerifyImg(ctx)
 				if err != nil {
-					errchan <- goerr.Wrap(err, "saveVerifyImg error")
+					errchan <- goerr.WithMsg(ErrSliderSave, err.Error())
 					return
 				}
-
 				// 处理图片验证
 				if err = s.handleVerifyImg(ctx, imgbase); err != nil {
-					errchan <- goerr.Wrap(err, "handleVerifyImg error")
+					if i < s.TryNum-1 {
+						logger.Error("verify failed, error:", err.Error())
+						continue
+					}
+					errchan <- goerr.WithMsg(ErrSliderVerify, err.Error())
 					return
 				}
-			} else {
-				errchan <- err
+				errchan <- nil
 				return
 			}
-			time.Sleep(1 * time.Second)
+			errchan <- err
 		}
 	}()
 
 	select {
-	case err := <-errchan:
+	case err = <-errchan:
 		return err
 	case <-ctx.Done():
 		return ctx.Err()
@@ -45,18 +54,18 @@ func (s *Slide) Run(ctx context.Context) error {
 		return goerr.Wrap(ctx.Err(), "timeout")
 	}
 }
-func (s *Slide) verifyParams() error {
+func (s *Slide) validateParams() error {
 	if s.DragSelector == "" {
 		return goerr.Err("dragSelector is empty")
 	}
-	if s.SliderImgSelector == "" {
+	if s.Selector == "" {
 		return goerr.Err("SliderImgSelector is empty")
 	}
-	if s.BgImgQuery == "" {
-		return goerr.Err("BgImgQuery is empty")
+	if s.BgImgSelector == "" {
+		return goerr.Err("BgImgSelector is empty")
 	}
-	if s.BlockImgQuery == "" {
-		return goerr.Err("BlockImgQuery is empty")
+	if s.BlockImgSelector == "" {
+		return goerr.Err("BlockImgSelector is empty")
 	}
 	if s.BgWidth <= 0 {
 		return goerr.Err("BgWidth is 0")
