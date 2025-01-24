@@ -3,10 +3,11 @@ package slider
 const (
 	ErrSliderNotExists Error = "slider not exists"
 	ErrSliderMismatch  Error = "slider mismatch"
-	ErrSliderSave      Error = "slider save error"
+	ErrSliderSave      Error = "slider save image error"
 	ErrSliderVerify    Error = "slider verify error"
 	ErrSliderReload    Error = "slider reload"
 	ErrSliderCtxDone   Error = "slider context done"
+	ErrSliderRefresh   Error = "slider refresh"
 )
 
 type Error string

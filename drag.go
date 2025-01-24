@@ -11,8 +11,12 @@ import (
 	"github.com/chromedp/cdproto/input"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"github.com/gtkit/logger"
 )
 
+// DragSlider 拖动滑块.
+// sel: 选择器, 如 `#slider`.
+// xlap: 拖动的距离, 单位px.
 func DragSlider(sel interface{}, xlap int) chromedp.QueryAction {
 	return chromedp.QueryAfter(sel, func(ctx context.Context, _ runtime.ExecutionContextID, node ...*cdp.Node) error {
 		if len(node) == 0 {
@@ -20,22 +24,25 @@ func DragSlider(sel interface{}, xlap int) chromedp.QueryAction {
 		}
 
 		return MouseDragNode(node[0], xlap).Do(ctx)
-	})
+	}, chromedp.ByQuery)
 }
 
 func MouseDragNode(n *cdp.Node, xlap int) chromedp.ActionFunc {
 	return func(ctx context.Context) error {
 		boxes, err := dom.GetContentQuads().WithNodeID(n.NodeID).Do(ctx)
 		if err != nil {
+			logger.Error("获取节点坐标失败", err)
 			return err
 		}
 		if len(boxes) == 0 {
+			logger.Error("节点坐标为空")
 			return chromedp.ErrInvalidDimensions
 		}
 
 		box := boxes[0]
 		c := len(box)
 		if c%2 != 0 || c < 1 {
+			logger.Error("节点坐标格式错误")
 			return chromedp.ErrInvalidDimensions
 		}
 
@@ -44,11 +51,12 @@ func MouseDragNode(n *cdp.Node, xlap int) chromedp.ActionFunc {
 			x += box[i]
 			y += box[i+1]
 		}
+
 		x /= float64(c / 2)
 		y /= float64(c / 2)
 
 		p := &input.DispatchMouseEventParams{
-			Type:       input.MousePressed,
+			Type:       input.MousePressed, // 鼠标左键按下
 			X:          x,
 			Y:          y,
 			Button:     input.Left,
@@ -57,6 +65,7 @@ func MouseDragNode(n *cdp.Node, xlap int) chromedp.ActionFunc {
 
 		// 鼠标左键按下
 		if err = p.Do(ctx); err != nil {
+			logger.Error("鼠标左键按下失败", err)
 			return err
 		}
 
@@ -68,24 +77,29 @@ func MouseDragNode(n *cdp.Node, xlap int) chromedp.ActionFunc {
 		// 生成随机的路径,模拟拖动
 		for i := 0; i < t; i++ {
 			rt := rand.Intn(20) + 20
+
 			if err = chromedp.Run(ctx, chromedp.Sleep(time.Millisecond*time.Duration(rt))); err != nil {
+				logger.Error("随机等待失败")
 				continue
 			}
-			x := rand.Intn(2) + 4
+
+			x := rand.Intn(2) + 5
+			// x := rand.Intn(2) + 15
 			if totalX >= xlap {
 				break
 			}
 			if totalX+x >= xlap {
 				x = xlap - totalX
 			}
-
 			totalX += x
+
 			y := rand.Intn(2)
 
 			p.Y += float64(y)
 			p.X += float64(x)
 
 			if err = p.Do(ctx); err != nil {
+				logger.Error("拖动失败", err)
 				return err
 			}
 		}
