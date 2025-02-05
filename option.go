@@ -6,6 +6,7 @@ import (
 	"github.com/gtkit/goerr"
 )
 
+// Opt is a function that sets options for a Slide.
 type Opt func(*Slide) error
 
 func WithTryNum(n int) Opt {
