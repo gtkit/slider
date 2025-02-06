@@ -68,6 +68,7 @@ func MouseDragNode(n *cdp.Node, xlap int) chromedp.ActionFunc {
 			logger.Error("鼠标左键按下失败", err)
 			return err
 		}
+		logger.Info("鼠标左键按下", x, y)
 
 		// 拖动
 		p.Type = input.MouseMoved
@@ -103,6 +104,7 @@ func MouseDragNode(n *cdp.Node, xlap int) chromedp.ActionFunc {
 				return err
 			}
 		}
+		logger.Info("拖动结束: ", xlap)
 		// 鼠标松开
 		p.Type = input.MouseReleased
 		return p.Do(ctx)
