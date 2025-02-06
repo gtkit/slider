@@ -8,6 +8,7 @@ const (
 	ErrSliderReload    Error = "slider reload"
 	ErrSliderCtxDone   Error = "slider context done"
 	ErrSliderRefresh   Error = "slider refresh"
+	ErrSliderDistance  Error = "slider distance is 0"
 )
 
 type Error string

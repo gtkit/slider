@@ -115,17 +115,17 @@ func (s *Slide) handleVerifyImg(ctx context.Context, imgbase64 *ImgBase64) error
 			chromedp.WaitVisible(s.ErrorSelector, chromedp.ByQuery),
 			chromedp.Evaluate("document.querySelectorAll('"+s.ErrorSelector+"').length", &errlength),
 		); err != nil {
-			logger.Error("监测操作失败 错误 :", err)
+			logger.Error("监测 `验证失败` 错误 :", err)
 			errChan <- err
 			return
 		}
 		// 有失败提示元素
 		if errlength > 0 {
-			logger.Info("监测操作失败, "+s.ErrorSelector+" 元素数量:", errlength)
+			logger.Info("监测 `验证失败` 元素数量, "+s.ErrorSelector+" 元素数量:", errlength)
 			errChan <- ErrSliderVerify
 			return
 		}
-		logger.Info("监测操作失败, " + s.ErrorSelector)
+		logger.Info("监测 `验证失败` 无失败提示, " + s.ErrorSelector)
 		errChan <- nil
 	}()
 
@@ -137,6 +137,10 @@ func (s *Slide) handleVerifyImg(ctx context.Context, imgbase64 *ImgBase64) error
 		img := s.sliderimg(imgbase64)
 		distance := getDistance(img, s.Mode)
 		logger.Info("滑块距离:", distance)
+		if distance == 0 {
+			errChan <- ErrSliderDistance
+			return
+		}
 
 		if err := chromedp.Run(ctx,
 			DragSlider(s.DragSelector, distance), /* 拖动滑块*/
