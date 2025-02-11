@@ -38,6 +38,8 @@ func (i *ImgURL) Save(bgurl, blockurl string) *ImgBase64 {
 		}
 
 		str := base64.StdEncoding.EncodeToString(data)
+		// bgmd5 := md5.New(str)
+		// logger.Info("验证码背景图片md5: ", bgmd5)
 		// fmt.Println("验证码背景图片base64: ", str)
 		sib.BgBase64 = Base64Prefix + str
 		return nil

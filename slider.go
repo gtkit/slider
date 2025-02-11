@@ -36,8 +36,10 @@ type Slide struct {
 	Selector         string // 验证码滑块图片选择器,判断是否有滑块验证 示例: "img.yidun_bg-img"
 	BgImgSelector    string // 验证码背景图片选择器查询 示例: "img.yidun_bg-img"
 	BlockImgSelector string // 验证码滑块选择器查询 示例: "img.yidun_jigsaw"
-	DragSelector     string // 拖动选择器 示例: "div.yidun_slider.yidun_slider--hover"
-	ErrorSelector    string // 错误选择器 示例: "div.yidun_slider.yidun_slider--error"
+	DragSelector     string // 拖动选择器 示例: "yidun_slider--hover"
+	ErrorSelector    string // 错误选择器 示例: "yidun_slider--error"
+	SuccessSelector  string // 成功选择器 示例: "yidun_slider--success"
+	RefreshSelector  string // 刷新选择器 示例: "button.yidun_refresh"
 	ImgSize
 
 	tryFailed TryFailer
@@ -63,7 +65,7 @@ func NewSlider(s *Slide, opts ...Opt) (*Slide, error) {
 	if s.TryNum <= 0 {
 		s.TryNum = 10
 	}
-	if s.Mode <= 0 {
+	if s.Mode < 0 {
 		s.Mode = TmSqdiff
 	}
 	if s.SleepTime <= 0 {

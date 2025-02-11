@@ -41,41 +41,19 @@ func (s *Slide) Run(ctx context.Context) error {
 					// if err := refresh(ctx); err != nil {
 					// 	logger.Error("refresh failed, error:", err.Error(), ", try num:", i+1)
 					// }
+					if goerr.Is(err, ErrSliderDistance) {
+						logger.Info("滑动距离过小, 刷新验证码")
+						s.refresh(ctx)
+					}
 					logger.Error("handleVerifyImg failed, error:", err.Error(), "; try num:", i+1)
 					continue
 				}
 				errchan <- goerr.WithMsg(ErrSliderVerify, err.Error())
 				return
 			}
+			// 验证成功
+			logger.Green("拖动验证成功 slider verify success")
 			errchan <- nil
-
-			// if err = s.hasVerifyImg(ctx); err == nil {
-			// 	// 保存图片验证码
-			// 	imgbase, err = s.saveVerifyImg(ctx)
-			// 	if err != nil {
-			// 		logger.Error("save verify img failed, error:", err.Error(), ", try num:", i+1)
-			// 		errchan <- goerr.WithMsg(ErrSliderSave, err.Error())
-			// 		return
-			// 	}
-			// 	// 处理图片验证
-			// 	if err = s.handleVerifyImg(ctx, imgbase); err != nil {
-			// 		logger.Error("verify failed, error:", err.Error(), ", try num:", i+1)
-			// 		if i < s.TryNum-1 {
-			// 			// 刷新验证图片
-			// 			// if err := refresh(ctx); err != nil {
-			// 			// 	logger.Error("refresh failed, error:", err.Error(), ", try num:", i+1)
-			// 			// }
-			//
-			// 			// logger.Error("verify failed, error:", err.Error(), ", try num:", i+1)
-			// 			continue
-			// 		}
-			// 		errchan <- goerr.WithMsg(ErrSliderVerify, err.Error())
-			// 		return
-			// 	}
-			// 	errchan <- nil
-			// 	return
-			// }
-			// errchan <- err
 		}
 	}()
 

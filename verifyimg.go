@@ -14,15 +14,19 @@ func (s *Slide) hasVerifyImg(ctx context.Context) error {
 	logger.Info("Check if slider image exists...")
 	errChan := make(chan error, 1)
 	length := 0
-	go func(c context.Context) {
-		if err := chromedp.Run(ctx,
+	gctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		if err := chromedp.Run(gctx,
 			// 等待元素可见（即页面已加载）账号框
 			chromedp.WaitVisible(s.Selector),
 			chromedp.Evaluate("document.querySelectorAll('"+s.Selector+"').length", &length),
 		); err != nil {
-			if c.Err() == nil {
-				errChan <- ErrSliderNotExists
+			if gctx.Err() != nil {
+				logger.Error("has VerifyImg check context done :", gctx.Err())
+				return
 			}
+			errChan <- err
 			return
 		}
 		if length > 0 {
@@ -30,12 +34,12 @@ func (s *Slide) hasVerifyImg(ctx context.Context) error {
 			return
 		}
 		errChan <- ErrSliderNotExists
-	}(ctx)
+	}()
 	select {
 	case e := <-errChan:
 		return e
 	case <-time.After(SleepTime):
-		return ErrSliderNotExists
+		return goerr.Err("hasVerifyImg wait timeout")
 	case <-ctx.Done():
 		return ErrSliderCtxDone
 	}
@@ -49,14 +53,14 @@ func (s *Slide) saveVerifyImg(ctx context.Context) (*ImgBase64, error) {
 	errChan := make(chan error, 1)
 	saveImg := make(chan *ImgBase64, 1)
 
-	go func(c context.Context) {
+	go func() {
 		var bgimg, blockimg string
 		// 等待图片验证码加载
 		if err := chromedp.Run(ctx,
 			chromedp.Evaluate("document.querySelector('"+s.BgImgSelector+"').src", &bgimg),       // 验证码背景
 			chromedp.Evaluate("document.querySelector('"+s.BlockImgSelector+"').src", &blockimg), // 验证码滑块
 		); err != nil {
-			if c.Err() == nil {
+			if ctx.Err() == nil {
 				errChan <- err
 			}
 			return
@@ -64,7 +68,7 @@ func (s *Slide) saveVerifyImg(ctx context.Context) (*ImgBase64, error) {
 		logger.Info("----temp bg img before:", tempBgImg)
 		if bgimg == tempBgImg {
 			logger.Info("------验证码图片需要刷新------")
-			refresh(ctx)
+			s.refresh(ctx)
 			errChan <- ErrSliderRefresh
 			return
 		}
@@ -82,13 +86,13 @@ func (s *Slide) saveVerifyImg(ctx context.Context) (*ImgBase64, error) {
 			return
 		}
 		errChan <- ErrSliderSave
-	}(ctx)
+	}()
 
 	select {
 	case e := <-errChan:
 		return nil, e
 	case <-time.After(SleepTime):
-		return nil, goerr.Err("slider timeout")
+		return nil, goerr.Err("saveVerifyImg timeout")
 	case <-ctx.Done():
 		return nil, goerr.Err("save slider context done")
 	case img := <-saveImg:
@@ -104,76 +108,98 @@ func (s *Slide) saveVerifyImg(ctx context.Context) (*ImgBase64, error) {
 
 // 处理图片验证.
 func (s *Slide) handleVerifyImg(ctx context.Context, imgbase64 *ImgBase64) error {
+	logger.Info("开始处理图片验证...")
 	errChan := make(chan error, 1)
-	errlength := 0
+	gctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	logger.Info("-----------开始处理图片验证-----------")
 	// 滑动验证失败监测
 	go func() {
-		logger.Info("-----------开始验证失败监测------------", s.ErrorSelector)
-		if err := chromedp.Run(ctx,
-			chromedp.WaitVisible(s.ErrorSelector, chromedp.ByQuery),
-			chromedp.Evaluate("document.querySelectorAll('"+s.ErrorSelector+"').length", &errlength),
+		logger.Info("开始验证失败监测...", s.ErrorSelector)
+		if err := chromedp.Run(gctx,
+			chromedp.WaitReady(s.ErrorSelector, chromedp.ByQuery),
 		); err != nil {
+			if gctx.Err() != nil {
+				logger.Error("监测 `验证失败` context done :", gctx.Err())
+				return
+			}
 			logger.Error("监测 `验证失败` 错误 :", err)
 			errChan <- err
 			return
 		}
-		// 有失败提示元素
-		if errlength > 0 {
-			logger.Info("监测 `验证失败` 元素数量, "+s.ErrorSelector+" 元素数量:", errlength)
-			errChan <- ErrSliderVerify
+		logger.Red("拖动滑块失败")
+		errChan <- ErrSliderVerify
+	}()
+	// 滑动验证成功监测
+	go func() {
+		logger.Info("开始验证成功监测...", s.SuccessSelector)
+		if err := chromedp.Run(gctx,
+			chromedp.WaitReady(s.SuccessSelector, chromedp.ByQuery),
+		); err != nil {
+			if gctx.Err() != nil {
+				logger.Error("监测 `验证成功` context done :", gctx.Err())
+				return
+			}
+			logger.Error("监测 `验证成功` 错误 :", err)
+			errChan <- err
 			return
 		}
-		logger.Info("监测 `验证失败` 无失败提示, " + s.ErrorSelector)
+		// 有成功提示元素
+		logger.Green("拖动滑块成功")
 		errChan <- nil
+		return
 	}()
 
 	time.Sleep(time.Second * 2)
 
 	// 拖动滑块进行验证
 	go func() {
-		logger.Info("-----------开始滑动验证-----------")
+		logger.Info("开始滑动验证")
 		img := s.sliderimg(imgbase64)
 		distance := getDistance(img, s.Mode)
-		logger.Info("滑块距离:", distance)
+		logger.Info("滑块距离:", distance, "; 验证模式:", s.Mode)
 		if distance == 0 {
 			errChan <- ErrSliderDistance
 			return
 		}
 
-		if err := chromedp.Run(ctx,
+		if err := chromedp.Run(gctx,
 			DragSlider(s.DragSelector, distance), /* 拖动滑块*/
-			chromedp.Sleep(time.Second),
 		); err != nil {
+			if gctx.Err() != nil {
+				logger.Error("拖动滑块 context done :", gctx.Err())
+				return
+			}
 			logger.Error("滑块拖动失败:", err)
 			errChan <- err
 			return
 		}
 		logger.Info("Drag Slider has done.")
-		// time.Sleep(SleepTime)
-		// errChan <- nil
 	}()
 
 	select {
 	case e := <-errChan:
 		return e
 	case <-time.After(SleepTime):
-		return goerr.Err("等待图片验证码超时")
+		return goerr.Err("handleVerifyImg timeout")
 	case <-ctx.Done():
-		return goerr.Err("图片验证码 context done")
+		return goerr.Err("handleVerifyImg context done")
 	}
 }
 
-func refresh(ctx context.Context) error {
+func (s *Slide) refresh(ctx context.Context) error {
 	errchan := make(chan error, 1)
+	gctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	go func() {
-		if err := chromedp.Run(ctx,
-			chromedp.WaitVisible(`button.yidun_refresh`),
-			chromedp.Click(`button.yidun_refresh`),
+		if err := chromedp.Run(gctx,
+			chromedp.WaitVisible(s.RefreshSelector),
+			chromedp.Click(s.RefreshSelector),
 			chromedp.Sleep(time.Second),
 		); err != nil {
-			errchan <- err
+			if gctx.Err() == nil {
+				errchan <- err
+			}
 			return
 		}
 		errchan <- nil
